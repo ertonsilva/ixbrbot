@@ -1,0 +1,27 @@
+# Telegram Bot
+python-telegram-bot==21.7
+
+# RSS Parser
+feedparser==6.0.11
+
+# Environment variables
+python-dotenv==1.0.1
+
+# Date parsing
+python-dateutil==2.9.0
+
+# Async HTTP (used by python-telegram-bot)
+httpx==0.28.1
+
+# Async SQLite
+aiosqlite==0.20.0
+
+# Configuration validation
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Structured logging
+python-json-logger==3.2.1
+
+# Retry logic
+tenacity==9.0.0
