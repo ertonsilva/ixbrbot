@@ -154,6 +154,13 @@ do_start() {
         return 1
     fi
 
+    # Ensure data directory exists with correct permissions
+    if [ ! -d "data" ]; then
+        mkdir -p data
+        print_ok "Diretorio data/ criado"
+    fi
+    chmod 777 data 2>/dev/null || true
+
     $COMPOSE_CMD up -d
     
     if [ $? -eq 0 ]; then
@@ -203,6 +210,13 @@ do_rebuild() {
         print_error "Corrija os erros de configuracao antes de reconstruir."
         return 1
     fi
+
+    # Ensure data directory exists with correct permissions
+    if [ ! -d "data" ]; then
+        mkdir -p data
+        print_ok "Diretorio data/ criado"
+    fi
+    chmod 777 data 2>/dev/null || true
 
     $COMPOSE_CMD up -d --build
     
