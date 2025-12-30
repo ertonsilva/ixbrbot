@@ -1329,11 +1329,16 @@ class IXBRBot:
             except asyncio.CancelledError:
                 pass
 
-        # Stop Telegram
-        if self.app.updater.running:
-            await self.app.updater.stop()
-        await self.app.stop()
-        await self.app.shutdown()
+        # Stop Telegram (only if it was started)
+        try:
+            if self.app.updater and self.app.updater.running:
+                await self.app.updater.stop()
+            if self.app.running:
+                await self.app.stop()
+                await self.app.shutdown()
+        except Exception as e:
+            logger.debug("Error during shutdown (may be normal if bot didn't fully start)", 
+                        extra={"error": str(e)})
 
         logger.info("Bot stopped successfully")
 
