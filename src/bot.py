@@ -97,8 +97,10 @@ class IXBRBot:
         self.app.add_error_handler(self.error_handler)
 
     async def setup_commands(self) -> None:
-        """Set up bot commands visible in Telegram."""
-        # Public commands
+        """
+        Set up bot commands visible in Telegram.
+        Retries up to 3 times with exponential backoff on network errors.
+        """
         public_commands = [
             BotCommand("start", "Iniciar recebimento de notificacoes"),
             BotCommand("stop", "Parar de receber notificacoes"),
@@ -107,8 +109,18 @@ class IXBRBot:
             BotCommand("help", "Mostrar ajuda e informacoes"),
         ]
 
-        await self.app.bot.set_my_commands(public_commands)
-        logger.info("Bot commands configured")
+        for attempt in range(3):
+            try:
+                await self.app.bot.set_my_commands(public_commands)
+                logger.info("Bot commands configured")
+                return
+            except TelegramError as e:
+                wait_time = 5 * (2 ** attempt)  # 5, 10, 20 seconds
+                if attempt < 2:
+                    logger.warning(f"Failed to set commands (attempt {attempt + 1}/3): {e} - retry in {wait_time}s")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.warning(f"Could not set bot commands after 3 attempts: {e} (continuing anyway)")
 
     # ==================== Permission Checks ====================
 
@@ -1214,13 +1226,25 @@ class IXBRBot:
 
         logger.info(f"Starting bot (interval={config.check_interval}s, admins={len(config.get_admin_ids())})")
 
-        # Start polling
+        # Start polling with retry
         await self.app.initialize()
         await self.app.start()
-        await self.app.updater.start_polling(
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=True
-        )
+        
+        for attempt in range(5):
+            try:
+                await self.app.updater.start_polling(
+                    allowed_updates=Update.ALL_TYPES,
+                    drop_pending_updates=True
+                )
+                break
+            except TelegramError as e:
+                wait_time = 10 * (2 ** attempt)  # 10, 20, 40, 80, 160 seconds
+                if attempt < 4:
+                    logger.warning(f"Polling failed (attempt {attempt + 1}/5): {e} - retry in {wait_time}s")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"Could not start polling after 5 attempts: {e}")
+                    raise
 
         logger.info("Bot is running")
 
@@ -1275,8 +1299,12 @@ async def main() -> None:
 
     try:
         await bot.start()
+    except TelegramError as e:
+        # Network/API errors - log cleanly without traceback
+        logger.error(f"Bot stopped due to Telegram error: {type(e).__name__}: {e}")
     except Exception as e:
-        logger.error(f"Bot crashed: {type(e).__name__}: {e}", exc_info=True)
+        # Unexpected errors - log with more detail but not full traceback
+        logger.error(f"Bot crashed unexpectedly: {type(e).__name__}: {e}")
     finally:
         await bot.stop()
 
