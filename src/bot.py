@@ -59,10 +59,10 @@ class IXBRBot:
         # Register command handlers
         self._register_handlers()
 
-        logger.info("Bot initialized", extra={
-            "check_interval": config.check_interval,
-            "max_message_age_days": config.max_message_age_days
-        })
+        logger.info(
+            f"Bot initialized (interval={config.check_interval}s, "
+            f"max_age={config.max_message_age_days}d)"
+        )
 
     def _register_handlers(self) -> None:
         """Register all command handlers."""
@@ -129,11 +129,7 @@ class IXBRBot:
             return member.status in ["creator", "administrator"]
 
         except TelegramError as e:
-            logger.warning("Could not check admin status", extra={
-                "chat_id": chat_id,
-                "user_id": user_id,
-                "error": str(e)
-            })
+            logger.warning(f"Could not check admin status: chat={chat_id} user={user_id} error={e}")
             # Default to False for safety
             return False
 
@@ -147,11 +143,7 @@ class IXBRBot:
         count = await self.db.get_command_count(chat_id, seconds=60)
 
         if count >= config.rate_limit_commands:
-            logger.warning("Rate limit exceeded", extra={
-                "chat_id": chat_id,
-                "command": command,
-                "count": count
-            })
+            logger.warning(f"Rate limit exceeded: chat={chat_id} cmd={command} count={count}")
             return False
 
         await self.db.log_command(chat_id, command)
@@ -261,12 +253,8 @@ class IXBRBot:
             disable_web_page_preview=True
         )
 
-        logger.info("Start command", extra={
-            "user": user.username if user else "unknown",
-            "chat_id": chat.id,
-            "chat_type": chat.type,
-            "is_new": is_new
-        })
+        user_str = user.username if user else "unknown"
+        logger.info(f"/start: user={user_str} chat={chat.id} type={chat.type} new={is_new}")
 
     async def cmd_stop(
         self,
@@ -310,11 +298,8 @@ class IXBRBot:
 
         await update.message.reply_text(message, parse_mode=ParseMode.HTML)
 
-        logger.info("Stop command", extra={
-            "user": user.username if user else "unknown",
-            "chat_id": chat.id,
-            "was_subscribed": was_subscribed
-        })
+        user_str = user.username if user else "unknown"
+        logger.info(f"/stop: user={user_str} chat={chat.id} was_subscribed={was_subscribed}")
 
     async def cmd_status(
         self,
@@ -450,7 +435,7 @@ class IXBRBot:
                 "Horario de silencio desativado.\n"
                 "Notificacoes serao enviadas imediatamente."
             )
-            logger.info("Quiet hours disabled", extra={"chat_id": chat.id})
+            logger.info(f"Quiet hours disabled: chat={chat.id}")
             return
 
         # Parse arguments: could be "HH:MM HH:MM" or "TZ HH:MM HH:MM"
@@ -500,12 +485,7 @@ class IXBRBot:
             f"enviadas em resumo quando o silencio terminar."
         )
 
-        logger.info("Quiet hours set", extra={
-            "chat_id": chat.id,
-            "start": start,
-            "end": end,
-            "timezone": timezone_str
-        })
+        logger.info(f"Quiet hours set: chat={chat.id} {start}-{end} ({timezone_str})")
 
     async def callback_quiet_hours(
         self,
@@ -528,7 +508,7 @@ class IXBRBot:
                 "Horario de silencio desativado.\n"
                 "Notificacoes serao enviadas imediatamente."
             )
-            logger.info("Quiet hours disabled via menu", extra={"chat_id": chat_id})
+            logger.info(f"Quiet hours disabled via menu: chat={chat_id}")
             return
 
         if data == "quiet:tz":
@@ -630,12 +610,7 @@ class IXBRBot:
                 f"enviadas em resumo quando o silencio terminar.",
                 parse_mode=ParseMode.HTML
             )
-            logger.info("Quiet hours set via menu", extra={
-                "chat_id": chat_id,
-                "start": start,
-                "end": end,
-                "timezone": timezone_str
-            })
+            logger.info(f"Quiet hours set via menu: chat={chat_id} {start}-{end} ({timezone_str})")
 
     async def cmd_help(
         self,
@@ -708,10 +683,7 @@ class IXBRBot:
             await update.message.reply_text(
                 "Este comando e restrito a administradores."
             )
-            logger.warning("Unauthorized backup attempt", extra={
-                "user_id": user.id,
-                "username": user.username
-            })
+            logger.warning(f"Unauthorized backup attempt: user={user.id} ({user.username})")
             return
 
         await update.message.reply_text("Gerando backup...")
@@ -740,16 +712,10 @@ class IXBRBot:
                 )
             )
 
-            logger.info("Backup created and sent", extra={
-                "admin_id": user.id,
-                "chats_count": len(backup_data["subscribed_chats"])
-            })
+            logger.info(f"Backup created: admin={user.id} chats={len(backup_data['subscribed_chats'])}")
 
         except Exception as e:
-            logger.error("Backup failed", extra={
-                "error": str(e),
-                "admin_id": user.id
-            })
+            logger.error(f"Backup failed: admin={user.id} error={e}")
             await update.message.reply_text(
                 f"Erro ao gerar backup: {str(e)}"
             )
@@ -815,10 +781,7 @@ class IXBRBot:
             await message.reply_text(
                 f"Arquivo muito grande. Maximo permitido: {max_mb:.1f}MB"
             )
-            logger.warning("Backup file too large", extra={
-                "user_id": user.id,
-                "file_size": message.document.file_size
-            })
+            logger.warning(f"Backup file too large: user={user.id} size={message.document.file_size}")
             return
 
         await message.reply_text("Processando arquivo de backup...")
@@ -855,19 +818,15 @@ class IXBRBot:
                 parse_mode=ParseMode.HTML
             )
 
-            logger.info("Backup restored", extra={
-                "admin_id": user.id,
-                "result": result,
-                "merge": merge
-            })
+            logger.info(
+                f"Backup restored: admin={user.id} imported={result['imported']} "
+                f"skipped={result['skipped']} merge={merge}"
+            )
 
         except json.JSONDecodeError:
             await message.reply_text("Erro: arquivo JSON invalido.")
         except Exception as e:
-            logger.error("Restore failed", extra={
-                "error": str(e),
-                "admin_id": user.id
-            })
+            logger.error(f"Restore failed: admin={user.id} error={e}")
             await message.reply_text(f"Erro ao restaurar: {str(e)}")
 
     async def cmd_stats(
@@ -928,10 +887,8 @@ class IXBRBot:
         context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         """Handle errors during bot operation."""
-        logger.error("Bot error", extra={
-            "error": str(context.error),
-            "error_type": type(context.error).__name__
-        }, exc_info=context.error)
+        error_type = type(context.error).__name__
+        logger.error(f"Bot error [{error_type}]: {context.error}")
 
     # ==================== RSS Monitoring ====================
 
@@ -966,10 +923,7 @@ class IXBRBot:
             await self.db.cleanup_command_log()
 
         except Exception as e:
-            logger.error("Error checking RSS updates", extra={
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logger.error(f"Error checking RSS updates: {type(e).__name__}: {e}")
 
     async def _send_event_to_chats(
         self,
@@ -996,10 +950,7 @@ class IXBRBot:
                     message_text=message_text,
                     event_title=event.title
                 )
-                logger.debug("Notification queued (quiet hours)", extra={
-                    "chat_id": chat_id,
-                    "event_guid": event.guid
-                })
+                logger.debug(f"Notification queued (quiet hours): chat={chat_id}")
                 continue
 
             # Check if message was already sent
@@ -1030,20 +981,13 @@ class IXBRBot:
                             message_title=event.title
                         )
 
-                        logger.info("Message updated", extra={
-                            "chat_id": chat_id,
-                            "event_guid": event.guid,
-                            "telegram_message_id": telegram_msg_id
-                        })
+                        logger.info(f"Message updated: chat={chat_id} msg_id={telegram_msg_id}")
 
                         await asyncio.sleep(0.1)
                         continue
 
                     except TelegramError as e:
-                        logger.warning("Could not edit message", extra={
-                            "chat_id": chat_id,
-                            "error": str(e)
-                        })
+                        logger.warning(f"Could not edit message: chat={chat_id} error={e}")
 
             # Send new message
             await self._send_message(chat_id, event, message_text, current_hash)
@@ -1073,11 +1017,7 @@ class IXBRBot:
                 delivery_status="sent"
             )
 
-            logger.info("Message sent", extra={
-                "chat_id": chat_id,
-                "event_guid": event.guid,
-                "telegram_message_id": sent_message.message_id
-            })
+            logger.info(f"Message sent: chat={chat_id} msg_id={sent_message.message_id}")
 
             await asyncio.sleep(0.1)
             return True
@@ -1092,19 +1032,11 @@ class IXBRBot:
             ]
 
             if any(x in error_str for x in permanent_errors):
-                logger.warning("Chat inaccessible, unsubscribing", extra={
-                    "chat_id": chat_id,
-                    "error": str(e)
-                })
+                logger.warning(f"Chat inaccessible, unsubscribing: chat={chat_id} error={e}")
                 await self.db.unsubscribe_chat(chat_id)
             else:
                 # Temporary error - log for tracking
-                logger.error("Message delivery failed", extra={
-                    "chat_id": chat_id,
-                    "event_guid": event.guid,
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
+                logger.error(f"Message delivery failed: chat={chat_id} error={e}")
 
             return False
 
@@ -1180,19 +1112,12 @@ class IXBRBot:
                             delivery_status="sent"
                         )
             except TelegramError as e:
-                logger.error("Failed to send pending notifications", extra={
-                    "chat_id": chat_id,
-                    "error": str(e),
-                    "pending_count": len(pending)
-                })
+                logger.error(f"Failed to send pending notifications: chat={chat_id} count={len(pending)} error={e}")
                 continue  # Don't clear if sending failed
 
             # Clear pending
             await self.db.clear_pending_notifications(chat_id)
-            logger.info("Sent pending notifications", extra={
-                "chat_id": chat_id,
-                "count": len(pending)
-            })
+            logger.info(f"Sent pending notifications: chat={chat_id} count={len(pending)}")
 
     # ==================== Health Check ====================
 
@@ -1207,9 +1132,7 @@ class IXBRBot:
                     datetime.now().isoformat()
                 )
             except Exception as e:
-                logger.error("Health check write failed", extra={
-                    "error": str(e)
-                })
+                logger.error(f"Health check write failed: {e}")
 
             # Wait 30 seconds or until shutdown
             try:
@@ -1251,15 +1174,10 @@ class IXBRBot:
                 )
             )
 
-            logger.info("Auto backup completed", extra={
-                "chats_count": len(backup_data["subscribed_chats"]),
-                "backup_chat_id": config.backup_chat_id
-            })
+            logger.info(f"Auto backup completed: chats={len(backup_data['subscribed_chats'])}")
 
         except Exception as e:
-            logger.error("Auto backup failed", extra={
-                "error": str(e)
-            })
+            logger.error(f"Auto backup failed: {e}")
 
     # ==================== Lifecycle ====================
 
@@ -1292,14 +1210,9 @@ class IXBRBot:
                 time=time(hour=3, minute=0),
                 name="auto_backup"
             )
-            logger.info("Auto backup scheduled", extra={
-                "backup_chat_id": config.backup_chat_id
-            })
+            logger.info(f"Auto backup scheduled: target_chat={config.backup_chat_id}")
 
-        logger.info("Starting bot", extra={
-            "check_interval": config.check_interval,
-            "admins": len(config.get_admin_ids())
-        })
+        logger.info(f"Starting bot (interval={config.check_interval}s, admins={len(config.get_admin_ids())})")
 
         # Start polling
         await self.app.initialize()
@@ -1337,16 +1250,13 @@ class IXBRBot:
                 await self.app.stop()
                 await self.app.shutdown()
         except Exception as e:
-            logger.debug("Error during shutdown (may be normal if bot didn't fully start)", 
-                        extra={"error": str(e)})
+            logger.debug(f"Error during shutdown (may be normal): {e}")
 
         logger.info("Bot stopped successfully")
 
     def signal_handler(self, sig: signal.Signals) -> None:
         """Handle shutdown signals (SIGTERM, SIGINT)."""
-        logger.info("Received shutdown signal", extra={
-            "signal": sig.name
-        })
+        logger.info(f"Received shutdown signal: {sig.name}")
         self._shutdown_event.set()
 
 
@@ -1366,10 +1276,7 @@ async def main() -> None:
     try:
         await bot.start()
     except Exception as e:
-        logger.error("Bot crashed", extra={
-            "error": str(e),
-            "error_type": type(e).__name__
-        }, exc_info=True)
+        logger.error(f"Bot crashed: {type(e).__name__}: {e}", exc_info=True)
     finally:
         await bot.stop()
 

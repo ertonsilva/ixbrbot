@@ -199,7 +199,7 @@ class RSSMonitor:
             List of StatusEvent objects, filtered by age.
             Returns empty list if fetch fails after retries.
         """
-        logger.debug("Fetching RSS feed", extra={"url": self.feed_url})
+        logger.debug(f"Fetching RSS feed: {self.feed_url}")
 
         # Retry logic
         last_error = None
@@ -222,41 +222,24 @@ class RSSMonitor:
                     if event and event.published >= cutoff_date:
                         events.append(event)
                     elif event:
-                        logger.debug(
-                            "Skipping old event",
-                            extra={
-                                "title": event.title[:50],
-                                "published": event.published.isoformat()
-                            }
-                        )
+                        logger.debug(f"Skipping old event: {event.title[:50]}")
 
-                logger.info("RSS feed fetched successfully", extra={
-                    "events_count": len(events),
-                    "total_entries": len(feed.entries)
-                })
+                logger.info(f"RSS feed fetched: {len(events)} new events (total: {len(feed.entries)})")
 
                 return events
 
             except RSSFetchError as e:
                 last_error = e
                 wait_time = 4 * (2 ** attempt)  # 4, 8, 16 seconds
-                logger.warning("RSS fetch attempt failed", extra={
-                    "attempt": attempt + 1,
-                    "error": str(e),
-                    "retry_in": wait_time
-                })
+                logger.warning(f"RSS fetch failed (attempt {attempt + 1}/3): {e} - retry in {wait_time}s")
                 if attempt < 2:  # Don't sleep after last attempt
                     import asyncio
                     await asyncio.sleep(wait_time)
 
         # All retries failed
         self._consecutive_failures += 1
-        logger.error("RSS fetch failed after retries", extra={
-            "error": str(last_error),
-            "consecutive_failures": self._consecutive_failures,
-            "last_success": self._last_successful_fetch.isoformat()
-                if self._last_successful_fetch else None
-        })
+        last_success = self._last_successful_fetch.isoformat() if self._last_successful_fetch else "never"
+        logger.error(f"RSS fetch failed after 3 retries: {last_error} (failures: {self._consecutive_failures}, last_success: {last_success})")
         return []
 
     def check_feed_status(self) -> dict:
@@ -328,10 +311,7 @@ class RSSMonitor:
             )
 
         except Exception as e:
-            logger.error("Failed to parse RSS entry", extra={
-                "error": str(e),
-                "entry_title": entry.get("title", "unknown")
-            })
+            logger.error(f"Failed to parse RSS entry: {e}")
             return None
 
     def _parse_date(self, entry: dict) -> datetime:

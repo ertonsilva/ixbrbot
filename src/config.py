@@ -1,6 +1,6 @@
 """
 Configuration module for IX.br Status Bot.
-Uses Pydantic for validation and structured JSON logging.
+Uses Pydantic for validation and standard logging format.
 """
 
 import sys
@@ -11,7 +11,6 @@ from datetime import time
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pythonjsonlogger import jsonlogger
 
 
 class Settings(BaseSettings):
@@ -212,37 +211,21 @@ class Settings(BaseSettings):
         health_path.parent.mkdir(parents=True, exist_ok=True)
 
 
-class CustomJsonFormatter(jsonlogger.JsonFormatter):
-    """Custom JSON formatter with additional fields."""
-
-    def add_fields(self, log_record, record, message_dict):
-        super().add_fields(log_record, record, message_dict)
-        log_record["timestamp"] = self.formatTime(record)
-        log_record["level"] = record.levelname
-        log_record["logger"] = record.name
-        log_record["module"] = record.module
-        log_record["function"] = record.funcName
-
-        # Remove redundant fields
-        if "message" in log_record and log_record["message"] == message_dict.get("message"):
-            pass  # Keep message
-
-        # Add exception info if present
-        if record.exc_info:
-            log_record["exception"] = self.formatException(record.exc_info)
-
-
 def setup_logging(log_level: str = "INFO") -> logging.Logger:
     """
-    Configure structured JSON logging.
+    Configure standard logging with clean, readable format.
+    
+    Format: YYYY-MM-DD HH:MM:SS | LEVEL | module | message
+    
     Returns the configured logger instance.
     """
     # Get numeric log level
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
 
-    # Create JSON formatter
-    formatter = CustomJsonFormatter(
-        "%(timestamp)s %(level)s %(name)s %(message)s"
+    # Create formatter with clean, readable format
+    formatter = logging.Formatter(
+        fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     # Configure root logger
@@ -253,7 +236,7 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
 
-    # Add stdout handler with JSON formatting
+    # Add stdout handler
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(numeric_level)
     stdout_handler.setFormatter(formatter)
@@ -263,6 +246,7 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("telegram").setLevel(logging.WARNING)
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
     # Get logger for the application
     logger = logging.getLogger("ixbr_bot")

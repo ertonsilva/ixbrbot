@@ -110,7 +110,7 @@ class Database:
             await self._migrate(db)
 
         self._initialized = True
-        logger.info("Database initialized", extra={"path": self.db_path})
+        logger.info(f"Database initialized: {self.db_path}")
 
     async def _migrate(self, db: aiosqlite.Connection) -> None:
         """Run migrations for existing databases."""
@@ -182,7 +182,7 @@ class Database:
 
             if existing:
                 if existing[0]:  # is_active
-                    logger.debug("Chat already subscribed", extra={"chat_id": chat_id})
+                    logger.debug(f"Chat already subscribed: {chat_id}")
                     return False
                 else:
                     # Reactivate
@@ -194,7 +194,7 @@ class Database:
                         (chat_title, chat_id)
                     )
                     await db.commit()
-                    logger.info("Chat resubscribed", extra={"chat_id": chat_id})
+                    logger.info(f"Chat resubscribed: {chat_id}")
                     return True
 
             # New subscription
@@ -204,11 +204,7 @@ class Database:
                 (chat_id, chat_type, chat_title)
             )
             await db.commit()
-            logger.info("Chat subscribed", extra={
-                "chat_id": chat_id,
-                "chat_type": chat_type,
-                "chat_title": chat_title
-            })
+            logger.info(f"Chat subscribed: {chat_id} ({chat_type})")
             return True
 
     async def unsubscribe_chat(self, chat_id: int) -> bool:
@@ -223,7 +219,7 @@ class Database:
             await db.commit()
 
             if cursor.rowcount > 0:
-                logger.info("Chat unsubscribed", extra={"chat_id": chat_id})
+                logger.info(f"Chat unsubscribed: {chat_id}")
                 return True
             return False
 
@@ -324,12 +320,7 @@ class Database:
             )
             await db.commit()
 
-            logger.debug("Message marked as sent", extra={
-                "message_guid": message_guid,
-                "chat_id": chat_id,
-                "telegram_message_id": telegram_message_id,
-                "delivery_status": delivery_status
-            })
+            logger.debug(f"Message marked as sent: chat={chat_id} msg_id={telegram_message_id}")
 
     async def update_message_record(
         self,
@@ -367,11 +358,7 @@ class Database:
             await db.commit()
 
             if status == "failed":
-                logger.warning("Message delivery failed", extra={
-                    "message_guid": message_guid,
-                    "chat_id": chat_id,
-                    "error": error_message
-                })
+                logger.warning(f"Message delivery failed: chat={chat_id} error={error_message}")
 
     async def cleanup_old_messages(self, days: Optional[int] = None) -> int:
         """Remove old sent message records."""
@@ -389,7 +376,7 @@ class Database:
             deleted = cursor.rowcount
 
             if deleted > 0:
-                logger.info("Cleaned up old messages", extra={"count": deleted})
+                logger.info(f"Cleaned up old messages: {deleted}")
             return deleted
 
     # ==================== Rate Limiting Methods ====================
@@ -450,10 +437,7 @@ class Database:
             )
             await db.commit()
 
-            logger.debug("Added pending notification", extra={
-                "chat_id": chat_id,
-                "message_guid": message_guid
-            })
+            logger.debug(f"Added pending notification: chat={chat_id}")
 
     async def get_pending_notifications(
         self,
@@ -536,10 +520,7 @@ class Database:
                 "subscribed_chats": chats
             }
             
-            logger.info("Backup exported", extra={
-                "total_chats": len(chats),
-                "active_chats": stats["active_chats"]
-            })
+            logger.info(f"Backup exported: {len(chats)} chats ({stats['active_chats']} active)")
             
             return backup
 
@@ -611,10 +592,7 @@ class Database:
                     imported += 1
                     
                 except Exception as e:
-                    logger.error("Error importing chat", extra={
-                        "chat": chat,
-                        "error": str(e)
-                    })
+                    logger.error(f"Error importing chat: {e}")
                     errors += 1
             
             await db.commit()
@@ -626,5 +604,5 @@ class Database:
             "total_in_backup": len(chats)
         }
         
-        logger.info("Backup imported", extra=result)
+        logger.info(f"Backup imported: {imported} imported, {skipped} skipped, {errors} errors")
         return result

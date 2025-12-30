@@ -20,8 +20,5 @@ aiosqlite==0.20.0
 pydantic==2.10.4
 pydantic-settings==2.7.1
 
-# Structured logging
-python-json-logger==3.2.1
-
 # Retry logic
 tenacity==9.0.0
