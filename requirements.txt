@@ -1,5 +1,5 @@
-# Telegram Bot
-python-telegram-bot==21.7
+# Telegram Bot (with job-queue for scheduled tasks)
+python-telegram-bot[job-queue]==21.7
 
 # RSS Parser
 feedparser==6.0.11
